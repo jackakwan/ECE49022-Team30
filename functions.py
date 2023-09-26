@@ -1,9 +1,10 @@
 import machine
+import time
 from machine import Pin, SoftI2C
 from lcd_api import LcdApi
 from i2c_lcd import I2cLcd
-import time
-from time import sleep
+from time import sleep, ticks_ms
+from network import WLAN, STA_IF
 
 def printToDisplay(string):
     I2C_ADDR = 0x27
@@ -14,18 +15,9 @@ def printToDisplay(string):
     sclPIN=machine.Pin(22)
 
     i2c=machine.SoftI2C(sda=sdaPIN, scl=sclPIN, freq=10000)   
-
-    # i2c = SoftI2C(scl=Pin(22), sda=Pin(21), freq=10000)     #initializing the I2C method for ESP32
-
     lcd = I2cLcd(i2c, I2C_ADDR, totalRows, totalColumns)
 
-    while True:
-        lcd.putstr("I2C LCD")
-        sleep(2)
-        lcd.clear()
-        lcd.putstr(string)
-        sleep(2)
-        lcd.clear()
+    lcd.putstr(string)
         
 def readKeypad():
     cols = [machine.Pin(19), machine.Pin(18), machine.Pin(17), machine.Pin(16)]
@@ -64,7 +56,31 @@ def readKeypad():
                 break
             str += key
             print(str)
-            time.sleep(0.5)
+            time.sleep(0.25)
     return str
-    
+
+def wifi_connect():
+
+    AP_NAME = 'myAP'
+#     AP_PASS = 'abc123'
+    AP_PASS = readKeypad()
+    print(AP_PASS)
+    WIFI_TIMEOUT = 60
+
+    print('Connecting...')
+    printToDisplay('Connecting...')
+    wlan = WLAN(STA_IF)
+    wlan.disconnect()
+    wlan.active(True)
+    wlan.connect(AP_NAME, AP_PASS)
+    start_time = ticks_ms()
+    while not wlan.isconnected():
+        if (ticks_ms() - start_time > WIFI_TIMEOUT * 1000):
+            break
+    if (wlan.isconnected()):
+        print('Connected')
+        printToDisplay('Connected!')
+    else:
+        print('Timeout!')
+        printToDisplay('Timeout!')
 
