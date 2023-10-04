@@ -51,15 +51,91 @@ def readKeypad():
     while True:
         key = read_keypad()
         if key:
-            print("Key pressed:", key)
+#             print("Key pressed:", key)
             if key == 'D':
                 break
             str += key
-            print(str)
+#             print(str)
             time.sleep(0.25)
     return str
 
+def shift_register():
+    latchPin = Pin(12, Pin.OUT)
+    clockPin = Pin(14, Pin.OUT)
+    dataPin = Pin(23, Pin.IN)
+
+    switchVar = 0 
+    
+    latchPin.off()
+    clockPin.off()
+
+    def read_shift_register():
+        latchPin.off()
+        clockPin.off()
+        latchPin.on()
+        clockPin.on()
+        clockPin.off()
+
+        data_value = 0
+        for j in range(8):
+            value = dataPin.value()
+            data_value = (data_value << 1) | value
+
+        return data_value
+
+    def loop(switchVar):
+        dataIn = 0
+        latchPin.off()
+        clockPin.off()
+        clockPin.on()
+        latchPin.on()
+
+        for j in range(8):
+            value = dataPin.value()
+
+            if value:
+                a = 1 << j
+                dataIn = dataIn | a
+
+            clockPin.off()
+            clockPin.on()
+
+        if switchVar != dataIn:
+            switchVar = dataIn
+#             print("dataIn DEC:", dataIn)
+#             print("dataIn BIN:", bin(dataIn))
+            if dataIn == 127:
+                print("Button 1 pressed")
+                printToDisplay("Button 1 pressed!")
+            if dataIn == 191:
+                print("Button 2 pressed")
+                printToDisplay("Button 2 pressed!")
+            if dataIn == 223:
+                print("Button 3 pressed")
+                printToDisplay("Button 3 pressed!")
+            if dataIn == 239:
+                print("Button 4 pressed")
+                printToDisplay("Button 4 pressed!")
+            if dataIn == 247:
+                print("Button 5 pressed")
+                printToDisplay("Button 5 pressed!")
+            if dataIn == 251:
+                print("Button 6 pressed")
+                printToDisplay("Button 6 pressed!")
+            if dataIn == 253:
+                print("Button 7 pressed")
+                printToDisplay("Button 7 pressed!")
+            if dataIn == 254:
+                print("Button 8 pressed")
+                printToDisplay("Button 8 pressed!")
+
+        time.sleep(0.15)
+        
+    while True:
+        loop(switchVar)
+
 def wifi_connect():
+    printToDisplay("Enter your password:")
 
     AP_NAME = 'myAP'
 #     AP_PASS = 'abc123'
