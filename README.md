@@ -12,5 +12,8 @@ Contents:
 	 - Reading 8 different button presses from Parallel In Serial Out Shift Register
  - i2c_lcd.py/lcd_api.py: Additional code for driving LCD displays
  - ESP32_GENERIC: Firmware to be flashed onto ESP32 during first time of usage.
+ - ir_rx.py: IR receiver library
+ - ir_tx.py: IR transmitter library
+ - ir_program.py: File containing all necessary functions to send, receive, pair, and disconnect from profiles using IR signals.
 
    
