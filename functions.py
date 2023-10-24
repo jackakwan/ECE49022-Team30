@@ -179,3 +179,20 @@ def edit_profile_directory(profile_to_add):
             file.write(f"{numProfiles}: {profile_to_add}")
     except:
         print("Error opening the profile directory") 
+
+def set_current_profile(profile):
+    update = False
+    with open("profile_list.txt", 'r') as file_read:
+        lines = file_read.readlines()
+    with open("profile_list.txt", 'w+') as file_write:
+        for line in lines:
+            if profile in line:
+                update = True
+                file_write.write(line)
+            elif("cur" not in line):
+                file_write.write(line)
+        if(update):
+            file_write.write(f"cur: {profile}")
+        else:
+            print(f"Profile: {profile} not found in directory, exiting")
+            return -1
