@@ -160,3 +160,22 @@ def wifi_connect():
         print('Timeout!')
         printToDisplay('Timeout!')
 
+def create_profile_directory():
+    #This function will create a text file containing all profiles being used as well as the current profile selected
+    with open("profile_list.txt", 'w') as file:
+       file.write("Profile Directory")
+    file.close()
+
+def edit_profile_directory(profile_to_add):
+    numProfiles = -1
+    try:
+        with open("profile_list.txt", "w+") as file:
+            lines = file.readlines()
+            for line in lines:
+                numProfiles += 1
+                if(numProfiles > 8):
+                    print("Maximum number of profiles reached, cannot add another until an existing profile is deleted")
+                    return -1
+            file.write(f"{numProfiles}: {profile_to_add}")
+    except:
+        print("Error opening the profile directory") 
