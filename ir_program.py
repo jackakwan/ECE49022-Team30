@@ -65,6 +65,13 @@ def callback(data, addr, ctrl):
             #Set the data and address of the instruction received 
             newData = f"0x{data:02x}"
             newAddr = f"0x{addr:04x}"
+            with open(path, 'r') as file_read:
+                    #ir_key[signalToClone] = data
+                    lines = file_read.readlines()
+                    for line in lines:
+                        if ("cur" in line):
+                            profileLine = line.split(":")
+                            profile = profileLine[1].rsplit("\n").strip()
             path = f"{profile}.txt"	#Some path to the file containing the IR key for the current profile
             allFiles = os.listdir("/")
             #print(allFiles)
@@ -107,12 +114,18 @@ def ir_delete_profile(profile):
 
 if __name__ == "__MAIN__":
     #Test parameters
-    profile = "TV"
+
     pairProcess = True
     signalToSend = "POWER"
-    path = f"{profile}.txt"
     newcode = []
-
+    with open("profile_list.txt", 'r') as file_read:
+            #ir_key[signalToClone] = data
+            lines = file_read.readlines()
+            for line in lines:
+                if ("cur" in line):
+                    profileLine = line.split(":")
+                    profile = profileLine[1].rsplit("\n").strip()
+    path = f"{profile}.txt"
     #Enable IR transmit and receive pins
     ir = NEC_16(Pin(32, Pin.IN), callback)
     nec = NEC(Pin(26, Pin.OUT, value = 0))
