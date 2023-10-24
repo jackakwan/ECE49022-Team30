@@ -102,7 +102,7 @@ def ir_delete_profile(profile):
 #Some main calling
 #Code to send a signal
 
-if __name__ == '''MAIN''':
+if __name__ == "__MAIN__":
     profile = "TV"
     pairProcess = True
     signalToSend = "POWER"
