@@ -177,8 +177,10 @@ def edit_profile_directory(profile_to_add):
                     print("Maximum number of profiles reached, cannot add another until an existing profile is deleted")
                     return -1
             file.write(f"{numProfiles}: {profile_to_add}")
+        file.close()
     except:
         print("Error opening the profile directory") 
+    
 
 def set_current_profile(profile):
     update = False
@@ -196,3 +198,5 @@ def set_current_profile(profile):
         else:
             print(f"Profile: {profile} not found in directory, exiting")
             return -1
+    file_read.close()
+    file_write.close()
