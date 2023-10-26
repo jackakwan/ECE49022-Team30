@@ -1,5 +1,6 @@
 import machine
 import time
+import os
 from machine import Pin, SoftI2C
 from lcd_api import LcdApi
 from i2c_lcd import I2cLcd
@@ -186,6 +187,7 @@ def set_current_profile(profile):
     update = False
     with open("profile_list.txt", 'r') as file_read:
         lines = file_read.readlines()
+    file_read.close()
     with open("profile_list.txt", 'w+') as file_write:
         for line in lines:
             if profile in line:
@@ -198,5 +200,17 @@ def set_current_profile(profile):
         else:
             print(f"Profile: {profile} not found in directory, exiting")
             return -1
-    file_read.close()
     file_write.close()
+
+def delete_profile(profile):
+    with open("profile_list.txt", 'r') as file_read:
+        lines = file_read.readlines()
+    file_read.close()
+    with open("profile_list.txt", "w") as file_write:
+        for line in lines:
+            if profile not in lines:
+                file_write(line)
+    file_write.close()
+
+def delete_all_profiles():
+    os.remove("profile_list.txt")
