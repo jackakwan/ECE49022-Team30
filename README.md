@@ -15,5 +15,8 @@ Contents:
  - ir_rx.py: IR receiver library
  - ir_tx.py: IR transmitter library
  - ir_program.py: File containing all necessary functions to send, receive, pair, and disconnect from profiles using IR signals.
+   	- Pair/Disconnect functionality is done by creating/deleting text files containing the IR key for each device in the form of [Signal Name]: [Data], [Address]
+   	- Profile selection simply changes what text file is being read from at a given moment. 
+   
 
    
