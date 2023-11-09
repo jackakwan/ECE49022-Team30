@@ -10,12 +10,12 @@ Parameters: None
 
 This function updates the global variable 'signalToClone' which stores the name of the button the user is attempting to pair
 
-Function: ir_send_signal(data, addr)
+Function: ir_send_signal(signalToSend)
 Parameters:
-    1. data - The code for the instruction
-    2. addr - The address for the instruction
+    1. signalToSend - The name of the signal intending on being sent
 
-This function takes the data and the address of the signal attempting to be sent and sends it using the IR transmitter
+This function takes the name of the signal that the user wants to send, searches for the current profile, searches that profile's IR key for the signal, and, if found, sends the signal.
+Otherwise, this function prints an error to the terminal. 
 
 Function: callback(data, addr, ctrl)
 Parameters:
@@ -25,7 +25,9 @@ Parameters:
 This function does two things:
     1. If the user is attempting to pair, this function will take the data and address of the signal it just received and store it in the associated signal table
     2. If not, the user will take the data and address of the signal and print to the terminal for testing purposes (will be removed in future iterations)
-    
+
+Callback is run every time the IR receiver detects a signal using the enabled protocol (in our case, NEC)
+        
 Function: ir_delete_profile(profile)
 Parameters:
     1. profile  #The profile to be deleted
@@ -54,9 +56,38 @@ def ir_clone_signal():
     else:
         return signalToClone
 
-def ir_send_signal(data, addr):
-    #This function takes the signal's data and address and sends it using the IR transmitter
-    nec.transmit(addr, data)
+def ir_send_signal(signalToSend):
+    #This function takes a signal name as a string, finds the associated signal for the current profile, and sends it using the IR transmitter
+    signalCode = []    
+    with open("profile_list.txt", 'r') as file_read:
+            lines = file_read.readlines()
+            for line in lines:
+                if ("cur" in line):
+                    profileLine = line.split(":")
+                    profile = profileLine[1].rsplit("\n").strip()
+    path = f"{profile}.txt"
+    allFiles = os.listdir("/")
+    if path in allFiles:
+        with open(path, 'r') as file:
+            ir_key = file.readlines()
+            for key in ir_key:
+                if(signalToSend in key):
+                    signal = key.split(":")
+                    signal[1].rstrip("\n").strip()
+                    code = list(signal[1].split(","))
+                    for ind in code:
+                        signalCode.append("".join(ind.split()))
+                if(signalCode == []):
+                    print("Signal not found, please clone the signal to the remote")
+        if(signalCode != []):
+            nec.transmit(signalCode[1], signalCode[0])
+        else:
+            print("There was an error finding the signal data")
+    else:
+        print("Error: Profile not found.")
+
+    
+    
 
 def callback(data, addr, ctrl):
     if data >= 0:  # NEC protocol sends repeat codes.
@@ -117,33 +148,7 @@ if __name__ == "__MAIN__":
 
     pairProcess = True
     signalToSend = "POWER"
-    newcode = []
-    with open("profile_list.txt", 'r') as file_read:
-            #ir_key[signalToClone] = data
-            lines = file_read.readlines()
-            for line in lines:
-                if ("cur" in line):
-                    profileLine = line.split(":")
-                    profile = profileLine[1].rsplit("\n").strip()
-    path = f"{profile}.txt"
     #Enable IR transmit and receive pins
     ir = NEC_16(Pin(32, Pin.IN), callback)
     nec = NEC(Pin(26, Pin.OUT, value = 0))
-
-    allFiles = os.listdir("/")
-    if path in allFiles:
-        with open(path, 'r') as file:
-            ir_key = file.readlines()
-            for key in ir_key:
-                if(signalToSend in key):
-                    signal = key.split(":")
-                    signal[1].rstrip("\n").strip()
-                    code = list(signal[1].split(","))
-                    for ind in code:
-                        newcode.append("".join(ind.split()))
-                if(newcode == []):
-                    print("Signal not found, please clone the signal to the remote")
-        if(newcode != []):
-            ir_send_signal(newcode[0], newcode[1])
-    else:
-        print("IR Key does not exist, please program your remote!")
+    ir_send_signal(signalToSend)
