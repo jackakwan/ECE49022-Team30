@@ -199,6 +199,11 @@ def set_current_profile(profile):
             file_write.write(f"cur: {profile}")
         else:
             print(f"Profile: {profile} not found in directory, exiting")
+            #Rewrite the previous current profile
+            for line in lines:
+                if "cur" in line:
+                    file_write.write(f"cur: {profile}")
+            file_write.close()
             return -1
     file_write.close()
 
@@ -214,3 +219,16 @@ def delete_profile(profile):
 
 def delete_all_profiles():
     os.remove("profile_list.txt")
+
+def list_all_profiles():
+    with open("profile_list.txt", 'r') as file_read:
+        lines = file_read.readlines()
+    file_read.close()
+    
+    allProfiles = []
+    for line in lines:
+        profiles = line.split(":")
+        allProfiles.append(profiles[1].rsplit("\n").split())
+    for profile in allProfiles:
+        printToDisplay(profile)
+        time.sleep(1)
