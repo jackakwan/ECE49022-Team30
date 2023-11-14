@@ -1,29 +1,3 @@
-# MIT License
-# 
-# Copyright (c) 2020 Peter Hinch
-# 
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-# 
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-# 
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
-# Author: Peter Hinch
-# Copyright Peter Hinch 2020-2021 Released under the MIT license
-# http://github.com/peterhinch/micropython_ir
-
 # __init__.py Nonblocking IR blaster
 # Runs on Pyboard D or Pyboard 1.x (not Pyboard Lite), ESP32 and RP2
 
@@ -31,7 +5,6 @@
 
 # Copyright (c) 2020-2021 Peter Hinch
 from sys import platform
-from micropython import const
 ESP32 = platform == 'esp32'  # Loboris not supported owing to RMT
 RP2 = platform == 'rp2'
 if ESP32:
@@ -41,10 +14,10 @@ elif RP2:
     from .rp2_rmt import RP2_RMT
 else:
     from pyb import Pin, Timer  # Pyboard does not support machine.PWM
-from esp32 import RMT
+
+from micropython import const
 from array import array
-from time import ticks_us
-from time import ticks_diff
+from time import ticks_us, ticks_diff, sleep_ms
 # import micropython
 # micropython.alloc_emergency_exception_buf(100)
 
@@ -69,10 +42,11 @@ class IR:
 
     def __init__(self, pin, cfreq, asize, duty, verbose):
         if ESP32:
-            self._rmt = RMT(0, pin=pin, clock_div=80, carrier_freq=cfreq,
-                            carrier_duty_percent=duty)  # 1μs resolution
+            self._rmt = RMT(0, pin=pin, clock_div=80, tx_carrier = (cfreq, duty, 1))
+            # 1μs resolution
         elif RP2:  # PIO-based RMT-like device
             self._rmt = RP2_RMT(pin_pulse=None, carrier=(pin, cfreq, duty))  # 1μs resolution
+            asize += 1  # Allow for possible extra space pulse
         else:  # Pyboard
             if not IR._active_high:
                 duty = 100 - duty
@@ -89,21 +63,33 @@ class IR:
         self.verbose = verbose
         self.carrier = False  # Notional carrier state while encoding biphase
         self.aptr = 0  # Index into array
+        self._busy = False
 
     def _cb(self, t):  # T5 callback, generate a carrier mark or space
+        self._busy = True
         t.deinit()
         p = self.aptr
         v = self._arr[p]
         if v == STOP:
             self._ch.pulse_width_percent(self._space)  # Turn off IR LED.
+            self._busy = False
             return
         self._ch.pulse_width_percent(self._space if p & 1 else self._duty)
         self._tim.init(prescaler=84, period=v, callback=self._tcb)
         self.aptr += 1
 
+    def busy(self):
+        if ESP32:
+            return not self._rmt.wait_done()
+        if RP2:
+            return self._rmt.busy()
+        return self._busy
+
     # Public interface
     # Before populating array, zero pointer, set notional carrier state (off).
     def transmit(self, addr, data, toggle=0, validate=False):  # NEC: toggle is unused
+        while self.busy():
+            pass
         t = ticks_us()
         if validate:
             if addr > self.valid[0] or addr < 0:
@@ -119,11 +105,12 @@ class IR:
         if self.timeit:
             dt = ticks_diff(ticks_us(), t)
             print('Time = {}μs'.format(dt))
+        sleep_ms(1)  # Ensure ._busy is set prior to return
 
     # Subclass interface
     def trigger(self):  # Used by NEC to initiate a repeat frame
         if ESP32:
-            self._rmt.write_pulses(tuple(self._mva[0 : self.aptr]), start = 1)
+            self._rmt.write_pulses(tuple(self._mva[0 : self.aptr]))
         elif RP2:
             self.append(STOP)
             self._rmt.send(self._arr)
@@ -157,24 +144,29 @@ class Player(IR):
             self._arr[x] = t
         self.aptr = x + 1
         self.trigger()
-
-
 _TBURST = const(563)
 _T_ONE = const(1687)
 
 class NEC(IR):
     valid = (0xffff, 0xff, 0)  # Max addr, data, toggle
+    samsung = False
 
-    def __init__(self, pin, freq=38000, verbose=False):  # NEC specifies 38KHz
+    def __init__(self, pin, freq=38000, verbose=False):  # NEC specifies 38KHz also Samsung
         super().__init__(pin, freq, 68, 33, verbose)  # Measured duty ratio 33%
 
     def _bit(self, b):
         self.append(_TBURST, _T_ONE if b else _TBURST)
 
     def tx(self, addr, data, _):  # Ignore toggle
-        self.append(9000, 4500)
+        if self.samsung:
+            self.append(4500, 4500)
+        else:
+            self.append(9000, 4500)
         if addr < 256:  # Short address: append complement
-            addr |= ((addr ^ 0xff) << 8)
+            if self.samsung:
+              addr |= addr << 8
+            else:
+              addr |= ((addr ^ 0xff) << 8)
         for _ in range(16):
             self._bit(addr & 1)
             addr >>= 1
