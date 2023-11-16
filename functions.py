@@ -7,6 +7,77 @@ from i2c_lcd import I2cLcd
 from time import sleep, ticks_ms
 from network import WLAN, STA_IF
 
+cols = [machine.Pin(19), machine.Pin(18), machine.Pin(17), machine.Pin(16)]
+rows = [machine.Pin(4), machine.Pin(5), machine.Pin(2), machine.Pin(15)]
+keymap = [['1', '2', '3', 'A'], ['4', '5', '6', 'B'], ['7', '8', '9', 'C'], ['*', '0', '#', 'D']]
+
+latchPin = machine.Pin(12, machine.Pin.OUT)
+clockPin = machine.Pin(14, machine.Pin.OUT)
+dataPin = machine.Pin(23, machine.Pin.IN)
+
+def readBoard():
+    press = False
+    while not press:
+        switchVar = 0
+        latchPin.off()
+        clockPin.off()
+
+        dataIn = 0
+        latchPin.off()
+        clockPin.off()
+        clockPin.on()
+        latchPin.on()
+        
+    
+        for j in range(16):
+            value = dataPin.value()
+
+            if value:
+                a = 1 << j
+                dataIn = dataIn | a
+
+            clockPin.off()
+            clockPin.on()
+        j = 0
+        
+        if switchVar != dataIn:
+            switchVar = dataIn
+            if dataIn != 65535:
+                i = 0
+                while i < 16:
+                    temp = dataIn
+                    temp &= (1 << i)
+                    if not temp:
+                        string = "Button " + str(16 - i) + " pressed!"
+                        print(string)
+                        buttonNum = 16-i
+                        press = True
+                        return buttonNum
+                    i += 1
+
+        for row in rows:
+            row.init(mode=machine.Pin.IN, pull=machine.Pin.PULL_UP)
+
+        for col in cols:
+            col.init(mode=machine.Pin.OUT)
+
+        for col in cols:
+            col.value(0)
+            for i, row in enumerate(rows):
+                if row.value() == 0:
+                    col.value(1)
+                    key = keymap[i][cols.index(col)]
+                    if key == 'D':
+                        return 0
+                    print("Key", key, "pressed!")
+                    press = True
+                    if type(key) == str:
+                        return key
+                    return 100 + int(key)
+            col.value(1)
+
+        utime.sleep_ms(100)  # Adjust the delay if needed
+
 def printToDisplay(string):
     I2C_ADDR = 0x27
     totalRows = 2
