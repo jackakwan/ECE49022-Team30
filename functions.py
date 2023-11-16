@@ -303,3 +303,43 @@ def list_all_profiles():
     for profile in allProfiles:
         printToDisplay(profile)
         time.sleep(1)
+
+def pair():
+    numTV = 0
+    numSpeakers = 0
+    numProjectors = 0
+    printToDisplay("Press on the Keypad 1 for IR or 2 for WiFi")
+    choiceA = readBoard()
+    if(choiceA == 1):
+        printToDisplay("Press on the Keypad 1 to Add or 2 to Update")
+        choiceB = readBoard()
+        while(choiceB != 1 or choiceB != 2):
+            printToDisplay("Invalid Input, please try again")
+            choiceB = readBoard()
+        if(choiceB == 1):
+            printToDisplay("Select the type of device you want to add")
+            time.sleep(3)
+            printToDisplay("1: TV 2: Speakers 3: Projector")
+            choiceC = readBoard()
+            while(choiceC != 1 or choiceC != 2 or choiceC != 3):
+                printToDisplay("Invalid Input, please try again")
+                choiceC = readBoard()
+            with open("profile_list.txt", 'r') as file_read:
+                lines = file_read.readlines()
+                for line in lines:
+                    if "TV" in line:
+                        numTV = numTV + 1
+                    elif "Speaker" in line:
+                        numSpeakers = numSpeakers + 1
+                    elif "Projector" in line:
+                        numProjectors = numProjectors + 1
+            if(choiceC == 1):
+                device = "TV"
+                count = numTV
+            elif(choiceC == 2):
+                device = "Speakers"
+                count = numSpeakers
+            elif(choiceC == 3):
+                device = "Projector"
+                count = numProjectors
+            newProfile = f'{device}{count}.txt'
