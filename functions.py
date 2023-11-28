@@ -319,7 +319,7 @@ def pair():
     printToDisplay("Press on the Keypad 1 for IR or 2 for WiFi")
     choiceA = readBoard()
     if(choiceA == 1):
-        printToDisplay("Press on the Keypad 1 to Add, 2 to Update, 3 to Set Current")
+        printToDisplay("Press on the Keypad 1 to Add, 2 to Update, 3 to Set Current, 4 to delete")
         choiceB = readBoard()
         while(choiceB != 1 or choiceB != 2 or choiceB != 3):
             printToDisplay("Invalid Input, please try again")
@@ -436,5 +436,29 @@ def pair():
                     else:
                         continue
             file_read.close()
+        elif(choiceB == 4):
+            printToDisplay("Select the profile you wish to delete")
+            time.sleep(3)
+            printToDisplay("Press 1 if the displayed profile is correct or 2 otherwise")
+            time.sleep(3)
+            with open("profile_list.txt", 'r') as file_read:
+                lines = file_read.readlines()
+                for line in lines:
+                    if ':' in line:
+                        printToDisplay(line)
+                        choiceF = readBoard()
+                        while(choiceF != 1 or choiceF != 2):
+                            printToDisplay("Invalid input, try again")
+                            time.sleep(3)
+                            printToDisplay(line)
+                            choiceF = readBoard()
+                        if(choiceF == 1):
+                            profileLine = line.split(":")
+                            profile = profileLine[1].rsplit("\n").strip()
+                            delete_profile(profile)
+                        else:
+                            continue
+                    else:
+                        continue
     elif(choiceA == 2):
         wifi_connect()
