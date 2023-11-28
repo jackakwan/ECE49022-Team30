@@ -6,7 +6,7 @@ from lcd_api import LcdApi
 from i2c_lcd import I2cLcd
 from time import sleep, ticks_ms
 from network import WLAN, STA_IF
-
+from ir_program import *
 cols = [machine.Pin(19), machine.Pin(18), machine.Pin(17), machine.Pin(16)]
 rows = [machine.Pin(4), machine.Pin(5), machine.Pin(2), machine.Pin(15)]
 keymap = [['1', '2', '3', 'A'], ['4', '5', '6', 'B'], ['7', '8', '9', 'C'], ['*', '0', '#', 'D']]
@@ -207,30 +207,37 @@ def shift_register():
         loop(switchVar)
 
 def wifi_connect():
-    printToDisplay("Enter your password:")
-
-    AP_NAME = 'myAP'
-#     AP_PASS = 'abc123'
-    AP_PASS = readKeypad()
-    print(AP_PASS)
-    WIFI_TIMEOUT = 60
-
-    print('Connecting...')
-    printToDisplay('Connecting...')
+    printToDisplay("Select the WiFi network you wish to connect to")
+    time.sleep(3)
+    printToDisplay("1 to confirm, 2 to continue")
     wlan = WLAN(STA_IF)
     wlan.disconnect()
     wlan.active(True)
-    wlan.connect(AP_NAME, AP_PASS)
-    start_time = ticks_ms()
-    while not wlan.isconnected():
-        if (ticks_ms() - start_time > WIFI_TIMEOUT * 1000):
-            break
-    if (wlan.isconnected()):
-        print('Connected')
-        printToDisplay('Connected!')
-    else:
-        print('Timeout!')
-        printToDisplay('Timeout!')
+    networks = wlan.scan()
+    for network in networks:
+        printToDisplay(network)
+        choiceA = readBoard()
+        while(choiceA != 1 or choiceA != 2):
+            printToDisplay("Invalid input, try again")
+            choiceA = readBoard()
+        if(choiceA == 1):
+            printToDisplay("Enter your password:")
+            password = readBoard()
+            WIFI_TIMEOUT = 60
+            printToDisplay('Connecting...')
+            wlan.connect(network, password)
+            start_time = ticks_ms()
+            while not wlan.isconnected():
+                if (ticks_ms() - start_time > WIFI_TIMEOUT * 1000):
+                    break
+            if (wlan.isconnected()):
+                print('Connected')
+                printToDisplay('Connected!')
+            else:
+                print('Timeout!')
+                printToDisplay('Timeout!')
+        elif(choiceA == 2):
+            continue    
 
 def create_profile_directory():
     #This function will create a text file containing all profiles being used as well as the current profile selected
@@ -308,12 +315,13 @@ def pair():
     numTV = 0
     numSpeakers = 0
     numProjectors = 0
+    numProfiles = -1
     printToDisplay("Press on the Keypad 1 for IR or 2 for WiFi")
     choiceA = readBoard()
     if(choiceA == 1):
-        printToDisplay("Press on the Keypad 1 to Add or 2 to Update")
+        printToDisplay("Press on the Keypad 1 to Add, 2 to Update, 3 to Set Current")
         choiceB = readBoard()
-        while(choiceB != 1 or choiceB != 2):
+        while(choiceB != 1 or choiceB != 2 or choiceB != 3):
             printToDisplay("Invalid Input, please try again")
             choiceB = readBoard()
         if(choiceB == 1):
@@ -333,6 +341,7 @@ def pair():
                         numSpeakers = numSpeakers + 1
                     elif "Projector" in line:
                         numProjectors = numProjectors + 1
+            file_read.close()
             if(choiceC == 1):
                 device = "TV"
                 count = numTV
@@ -342,4 +351,90 @@ def pair():
             elif(choiceC == 3):
                 device = "Projector"
                 count = numProjectors
-            newProfile = f'{device}{count}.txt'
+            profileName = f"{device}{count}"
+            profilePath = f'{profileName}.txt'
+            with open("profile_list.txt", 'w+') as file_write:
+                lines = file_write.readlines()
+                for line in lines:
+                    numProfiles = numProfiles + 1
+                    if 'cur' not in line:
+                        file_write.write(line)
+                    elif 'cur' in line:
+                        temp = line
+                    file_write.write(f"{numProfiles}: {profileName}")
+                    file_write.write(temp)
+            file_write.close()
+            with open(profilePath, "w") as file_create:
+                printToDisplay("Profile Creation Complete")
+            file_create.close()
+            time.sleep(3)
+            printToDisplay("Add signal? 1: Y, 2: N")
+            choiceD = readBoard()
+            while(choiceD != 1 or choiceD != 2):
+                printToDisplay("Invalid Input, try again")
+                choiceD = readBoard()
+            if(choiceD == 1):
+                ir_clone_signal()
+            elif(choiceD == 2):
+                return 1
+        elif(choiceB == 2):
+            printToDisplay("Select the profile you wish to update")
+            time.sleep(3)
+            printToDisplay("Press 1 if the displayed profile is correct or 2 otherwise")
+            time.sleep(3)
+            with open("profile_list.txt", 'r') as file_read:
+                lines = file_read.readlines()
+                for line in lines:
+                    if ':' in line:
+                        printToDisplay(line)
+                        choiceE = readBoard()
+                        while(choiceE != 1 or choiceE != 2):
+                            printToDisplay("Invalid input, try again")
+                            time.sleep(3)
+                            printToDisplay(line)
+                            choiceE = readBoard()
+                        if(choiceE == 1):
+                            profileLine = line.split(":")
+                            profile = profileLine[1].rsplit("\n").strip()
+                            with open("profile_list.txt", 'w+') as file_write:
+                                for line in lines:
+                                    if 'cur' not in line:
+                                        file_write.write(line)
+                                    file_write(f"cur: {profile}")
+                            ir_clone_signal()
+                            file_write.close()
+                        else:
+                            continue
+            file_read.close()
+        elif(choiceB == 3):
+            printToDisplay("Select the profile you wish to set as current")
+            time.sleep(3)
+            printToDisplay("Press 1 if the displayed profile is correct or 2 otherwise")
+            time.sleep(3)
+            with open("profile_list.txt", 'r') as file_read:
+                lines = file_read.readlines()
+                for line in lines:
+                    if ':' in line:
+                        printToDisplay(line)
+                        choiceE = readBoard()
+                        while(choiceE != 1 or choiceE != 2):
+                            printToDisplay("Invalid input, try again")
+                            time.sleep(3)
+                            printToDisplay(line)
+                            choiceE = readBoard()
+                        if(choiceE == 1):
+                            profileLine = line.split(":")
+                            profile = profileLine[1].rsplit("\n").strip()
+                            with open("profile_list.txt", 'w+') as file_write:
+                                for line in lines:
+                                    if 'cur' not in line:
+                                        file_write.write(line)
+                                    file_write(f"cur: {profile}")
+                            file_write.close()
+                        else:
+                            continue
+                    else:
+                        continue
+            file_read.close()
+    elif(choiceA == 2):
+        wifi_connect()
