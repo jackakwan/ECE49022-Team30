@@ -114,14 +114,16 @@ def callback(data, addr, ctrl):
                         for line in lines:
                             if(signalToClone not in line):
                                 file_write.write(f"{line}")
-                        file_write.write(f"{signalToClone}: {newData}, {newAddr}\n")
-                        file_write.close()
+                        if not (data == 'f0' and addr == '0381'):
+                            file_write.write(f"{signalToClone}: {newData}, {newAddr}\n")
+                            file_write.close()
                 file_read.close()
             elif path not in allFiles:
                 with open(path, 'w') as file:
                     #ir_key[signalToClone] = data
-                    file.write(f"{signalToClone}: {newData}, {newAddr}\n")
-                    file.close()
+                    if not (data == 'f0' and addr == '0381'):
+                        file.write(f"{signalToClone}: {newData}, {newAddr}\n")
+                        file.close()
             else:
                 print("surely we don't enter this loop")
             #print('Data {:02x} Addr {:04x}'.format(data, addr))   Test print
