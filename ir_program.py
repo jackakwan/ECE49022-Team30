@@ -154,3 +154,144 @@ if __name__ == "__MAIN__":
     ir = NEC_16(Pin(32, Pin.IN), callback)
     nec = NEC(Pin(26, Pin.OUT, value = 0))
     ir_send_signal(signalToSend)
+
+
+'''
+import machine
+import time
+import os
+from ir_rx import NEC_16
+from ir_tx import NEC
+from functions import printToDisplay, readBoard
+
+signalToClone = ''
+pairProcess = False
+def ir_clone_signal():
+    #This function is called when the user is trying to program the remote, and simply sets the global variable signalToClone to what button the user intends to set
+    global pairProcess
+    global signalToClone
+    pairProcess = True
+    printToDisplay('Press button on our remote')   #Tell user to press a button
+    signalToClone = readBoard()    #Read button press
+    time.sleep(5)
+    if(signalToClone == ''):
+        printToDisplay('No button pressed, exiting pairing process')
+        pairProcess = False #Update boolean
+        return
+    else:
+        printToDisplay("Press button on your remote")
+
+def ir_send_signal(signalToSend):
+    #This function takes a signal name as a string, finds the associated signal for the current profile, and sends it using the IR transmitter
+    signalCode = []    
+    with open("profile_list.txt", 'r') as file_read:
+            lines = file_read.readlines()
+            for line in lines:
+                if ("cur" in line):
+                    profileLine = line.split(":")
+                    profile = profileLine[1].rsplit("\n").strip()
+    path = f"{profile}.txt"
+    allFiles = os.listdir("/")
+    if path in allFiles:
+        with open(path, 'r') as file:
+            ir_key = file.readlines()
+            for key in ir_key:
+                if(signalToSend in key):
+                    signal = key.split(":")
+                    signal[1].rstrip("\n").strip()
+                    code = list(signal[1].split(","))
+                    for ind in code:
+                        signalCode.append("".join(ind.split()))
+                if(signalCode == []):
+                    print("Signal not found, please clone the signal to the remote")
+        if(signalCode != []):
+            nec.transmit(signalCode[1], signalCode[0])
+        else:
+            print("There was an error finding the signal data")
+    else:
+        print("Error: Profile not found.")
+
+    
+    
+
+def callback(data, addr, ctrl):
+    if data >= 0:  # NEC protocol sends repeat codes.
+    #print('Data {:02x} Addr {:04x}'.format(data, addr))
+        global pairProcess
+        if pairProcess:
+            #Set the data and address of the instruction received 
+            newData = f"0x{data:02x}"
+            newAddr = f"0x{addr:04x}"
+            with open("profile_list.txt", 'r') as file_read:
+                    #ir_key[signalToClone] = data
+                    lines = file_read.readlines()
+                    for line in lines:
+                        if ("cur" in line):
+                            profileLine = line.split(":")
+                            profile = profileLine[1].rsplit("\n")
+                            name = profile[0].strip()
+            path = f"{name}.txt"	#Some path to the file containing the IR key for the current profile
+            allFiles = os.listdir("/")
+            #print(allFiles)
+            if path in allFiles:
+                with open(path, 'r') as file_read:
+                    #ir_key[signalToClone] = data
+                    lines = file_read.readlines()
+                    with open(path, 'w+') as file_write:
+                        for line in lines:
+                            if(signalToClone not in line):
+                                file_write.write(line)
+                        if not (data == 'f0' and addr == '0381'):
+                            file_write.write(f"{signalToClone}: {newData}, {newAddr}\n")
+                            printToDisplay("Cloned")
+                            time.sleep(3)
+                            printToDisplay("Clone another?")
+                            time.sleep(1.5)
+                            printToDisplay("1: Y 2: N")
+                            choice = readBoard()
+                            while(choice != '1' and choice != '2'):
+                                printToDisplay("Invalid input, try again")
+                                choice = readBoard
+                            if(choice == '1'):
+                                ir_clone_signal()
+                            else:
+                                pairProcess = False
+                            file_write.close()
+                file_read.close()
+            elif path not in allFiles:
+                with open(path, 'w') as file:
+                    #ir_key[signalToClone] = data
+                    if not (data == 'f0' and addr == '0381'):
+                        file.write(f"{signalToClone}: {newData}, {newAddr}\n")
+                        printToDisplay("Cloned")
+                        time.sleep(3)
+                        printToDisplay("Clone another?")
+                        time.sleep(1.5)
+                        printToDisplay("1: Y 2: N")
+                        choice = readBoard()
+                        while(choice != '1' and choice != '2'):
+                            printToDisplay("Invalid input, try again")
+                            choice = readBoard
+                        if(choice == '1'):
+                            ir_clone_signal()
+                        else:
+                            pairProcess = False
+                        file.close()
+                        
+            else:
+                print("surely we don't enter this loop")
+            #print('Data {:02x} Addr {:04x}'.format(data, addr))   Test print
+       #return (ir_key)
+       
+        else:
+        #Not a pairing process, print the signal that is detected. This functionality will be removed in the future
+            print('Data {:02x} Addr {:04x}'.format(data, addr))
+
+def ir_delete_profile(profile):
+    try:
+        path = f"{profile}.txt" #Path containing the profile
+        os.remove(path)
+    except:
+        print("The profile you're trying to delete does not exist.")
+
+'''
