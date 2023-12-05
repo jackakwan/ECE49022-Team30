@@ -208,22 +208,24 @@ def shift_register():
         loop(switchVar)
 
 def wifi_connect():
-    printToDisplay("Select the WiFi network you wish to connect to")
+    printToDisplay("Select network  to connect")
     time.sleep(3)
-    printToDisplay("1 to confirm, 2 to continue")
+    printToDisplay("1: Y 2: N")
     wlan = WLAN(STA_IF)
-    wlan.disconnect()
+    if(wlan.isconnected()):
+        wlan.disconnect()
     wlan.active(True)
     networks = wlan.scan()
     for network in networks:
-        printToDisplay(network)
+        printToDisplay(network[0].decode("utf-8"))
         choiceA = readBoard()
-        while(choiceA != 1 or choiceA != 2):
+        while(choiceA != '1' and choiceA != '2'):
             printToDisplay("Invalid input, try again")
             choiceA = readBoard()
-        if(choiceA == 1):
+        if(choiceA == '1'):
             printToDisplay("Enter your password:")
-            password = readBoard()
+            inputSeq = readKeypadForText()
+            password = convert_sequence_to_characters(inputSeq)
             WIFI_TIMEOUT = 60
             printToDisplay('Connecting...')
             wlan.connect(network, password)
@@ -237,7 +239,7 @@ def wifi_connect():
             else:
                 print('Timeout!')
                 printToDisplay('Timeout!')
-        elif(choiceA == 2):
+        elif(choiceA == '2'):
             continue    
 
 def create_profile_directory():
@@ -253,21 +255,25 @@ def create_profile_directory():
     file.close()
 
 def edit_profile_directory(profile_to_add):
-    numProfiles = 0
+    numProfiles = 1
     try:
         with open("profile_list.txt", "r") as file_read:
             lines = file_read.readlines()
         file_read.close()
         with open("profile_list.txt", "w+") as file_write:
             for line in lines:
-                if "cur" not in line:
-                    numProfiles = numProfiles + 1
-                    file_write.write(line)
-                if(numProfiles > 8):
-                    print("Maximum number of profiles reached, cannot add another until an existing profile is deleted")
-                    return 1
-                if "cur" in line:
-                    temp = line
+                if line.strip():
+                    if "cur" not in line and "Profile Directory" not in line and ":" in line:
+                        print("found a profile")
+                        numProfiles = numProfiles + 1
+                        file_write.write(line)
+                    elif "cur" not in line:
+                        file_write.write(line)
+                    elif "cur" in line:
+                        temp = line
+            if(numProfiles > 8):
+                print("Maximum number of profiles reached, cannot add another until an existing profile is deleted")
+                return 
             file_write.write(f"{numProfiles}: {profile_to_add}\n")
             file_write.write(f"{temp}\n")
         file_write.close()
@@ -280,15 +286,18 @@ def set_current_profile(profile):
     with open("profile_list.txt", 'r') as file_read:
         lines = file_read.readlines()
     file_read.close()
+    print(lines)
     with open("profile_list.txt", 'w+') as file_write:
         for line in lines:
-            if "cur" not in line and profile in line:
-                update = True
-                file_write.write(line)
-            elif("cur" not in line):
-                file_write.write(line)
-            elif "cur" in line:
-                temp = line
+            if line.strip():
+                if "cur" not in line and profile in line:
+                    print("found the profile")
+                    update = True
+                    file_write.write(line)
+                elif("cur" not in line):
+                    file_write.write(line)
+                elif "cur" in line:
+                    temp = line
         if(update):
             file_write.write(f"cur: {profile}\n")
         else:
@@ -311,11 +320,12 @@ def delete_profile(profile):
     file_read.close()
     with open("profile_list.txt", "w+") as file_write:
         for line in lines:
-            if profile not in line:
-                file_write.write(line)
-            if f"cur: {profile}" in line:
-                file_write.write("cur: None")
-    print("deleted")
+            if line.strip():
+                if profile not in line:
+                    file_write.write(line)
+                if f"cur: {profile}" in line:
+                    file_write.write("cur: None")
+    printToDisplay("Deleted, exiting")
     file_write.close()
 
 def delete_all_profiles():
@@ -399,6 +409,7 @@ def pair():
             if(choiceD == '1'):
                 set_current_profile(profileName)
                 ir_clone_signal()
+                return
             elif(choiceD == '2'):
                 return 1
         elif(choiceB == '2'):
@@ -438,7 +449,8 @@ def pair():
                             name = profile[0].strip()
                             set_current_profile(name)
                             ir_clone_signal()
-                            file_write.close()
+                            file_read.close()
+                            return
                         else:
                             continue
                 printToDisplay("No profile selected")
@@ -505,7 +517,90 @@ def pair():
                         continue
     elif(choiceA == '2'):
         wifi_connect()
-#delete_all_profiles()
-create_profile_directory()
-ir = NEC_16(Pin(33, Pin.IN), callback)
-pair()
+def readKeypadForText():
+    cols = [machine.Pin(19), machine.Pin(18), machine.Pin(17), machine.Pin(16)]
+    rows = [machine.Pin(4), machine.Pin(5), machine.Pin(2), machine.Pin(15)]
+
+    keymap = [
+        ['1', '2', '3', 'A'],
+        ['4', '5', '6', 'B'],
+        ['7', '8', '9', 'C'],
+        ['*', '0', '#', 'D']
+    ]
+
+    sequence = []
+    last_key = None
+    last_press_time = time.ticks_ms()
+
+    while True:
+        for row_index, row in enumerate(rows):
+            row.init(mode=machine.Pin.IN, pull=machine.Pin.PULL_UP)
+
+            for col_index, col in enumerate(cols):
+                col.init(mode=machine.Pin.OUT)
+                col.value(0)
+
+                if row.value() == 0:
+                    key = keymap[row_index][col_index]
+                    current_time = time.ticks_ms()
+                    time_diff = time.ticks_diff(current_time, last_press_time)
+
+                    if key == 'D':
+                        return sequence
+
+                    if last_key == key and time_diff <= 500:
+                        # Combine presses if the same button is pressed within 0.5s
+                        sequence[-1] += key
+                    else:
+                        # Separate presses if time difference > 0.5s
+                        sequence.append(key)
+
+                    last_key = key
+                    last_press_time = current_time
+                    time.sleep_ms(50)  # Debounce delay if needed
+                    while row.value() == 0:
+                        pass
+
+                col.init(mode=machine.Pin.IN, pull=machine.Pin.PULL_UP)
+                col.value(1)
+
+            row.init(mode=machine.Pin.IN, pull=machine.Pin.PULL_UP)
+
+        time.sleep_ms(50)  # Adjust the delay if needed
+        
+
+def convert_sequence_to_characters(sequence):
+    keypad_characters = {
+    '1': 'abc1', '2': 'def2', '3': 'ghi3',
+    '4': 'jkl4', '5': 'mno5', '6': 'pqrs6',
+    '7': 'tuv7', '8': 'wxyz8', '9': '9',
+    '0': '.,?0', '#': '!-_', '*': ''
+}
+    converted_characters = ''
+
+    for chunkInd in range(len(sequence)):
+        current_char = None
+        count = 0
+        chunk = sequence[chunkInd]
+        if chunk == "#" and chunkInd != len(sequence):
+            sequence[chunkInd+1] = '#'+sequence[chunkInd+1]
+            
+        
+        for digit in chunk:
+            if digit in keypad_characters and digit != "#":
+                if digit == current_char:
+                    count = (count + 1) % len(keypad_characters[digit])
+                    if chunk[0] == "#":
+                        converted_characters = converted_characters[:-1] + keypad_characters[digit][count].upper()
+                    else:
+                        converted_characters = converted_characters[:-1] + keypad_characters[digit][count]
+                else:
+                    current_char = digit
+                    count = 0
+                    if chunk[0] == "#":
+                        converted_characters += keypad_characters[digit][count].upper()
+                    else:
+                        converted_characters += keypad_characters[digit][count]
+
+    return converted_characters
+#pair()
